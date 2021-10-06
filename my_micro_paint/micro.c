@@ -12,10 +12,11 @@ typedef struct s_zone
 
 typedef struct s_shape
 {
-	char		c;
+	char		r;
 	float		x;
 	float		y;
-	float		radius;
+	float		width;
+	float		height;
 	char		charac;
 }							t_shape;
 
@@ -23,15 +24,18 @@ char *draw_zone(FILE *file, t_zone *z)
 {
 	char *str;
 	int		i;
+	int		input;
 
 	z->width = 0;
 	z->height = 0;
 	z->background = 0;
-	if (fscanf(file, "%d %d %c\n", &z->width, &z->height, &z->background) != 3)
+	if ((input = fscanf(file, "%d %d %c\n", &z->width, &z->height, &z->background)) != 3)
 		return (NULL);
 	else if (z->width <= 0 || z->width > 300)
 		return (NULL);
 	else if (z->height <= 0 || z->height > 300)
+		return (NULL);
+	else if (input == -1)
 		return (NULL);
 	str = (char *)malloc(sizeof(char *)*(z->width * z->height));
 	if (!str)
@@ -42,21 +46,16 @@ char *draw_zone(FILE *file, t_zone *z)
 	return (str);
 }
 
-int	in_circle(float x, float y, t_shape *s)
+int	in_rectangle(float x, float y, t_shape *s)
 {
-	float d;
-
-	d = sqrtf(powf(x - s->x, 2.) + powf(y - s->y, 2.));
-	if (d <= s->radius)
-	{
-		if ((s->radius - d) < 1)
-				return (0);
-		return (1);
-	}
-	return (-1);
+	if ((x < s->x) || (s->x + s->width < x) || (y < s->y) || (s->y + s->height < y))
+		return (0);
+	if ((x - s->x < 1) || (s->x + s->width - x < 1) || (y - s->y < 1) || (s->y + s->height - y < 1)) //borde
+		return (2);
+	return (1);
 }
 
-int draw_circle(FILE *file, t_zone *z, char *str)
+int draw_rectangle(FILE *file, t_zone *z, char *str)
 {
 	int			input;
 	t_shape s;
@@ -64,9 +63,9 @@ int draw_circle(FILE *file, t_zone *z, char *str)
 	int			y;
 	int			in;
 
-	while ((input = fscanf(file, "%c %f %f %f %c\n", &s.c, &s.x, &s.y, &s.radius, &s.charac)) == 5)
+	while ((input = fscanf(file, "%c %f %f %f %f %c\n", &s.r, &s.x, &s.y, &s.width, &s.height, &s.charac)) == 6)
 	{
-		if (s.radius <= 0 || (s.c != 'c' && s.c != 'C'))
+		if (s.width <= 0 || s.height <= 0 || (s.r != 'r' && s.r != 'R'))
 			return (1);
 		y = 0;
 		while (y < z->height)
@@ -74,8 +73,8 @@ int draw_circle(FILE *file, t_zone *z, char *str)
 			x = 0;
 			while (x < z->width)
 			{
-				in = in_circle((float)x, (float)y, &s);
-				if ((s.c == 'c' && in == 0) || (s.c == 'C' && in == 1))
+				in = in_rectangle((float)x, (float)y, &s);
+				if ((s.r == 'r' && in == 2) || (s.r == 'R' && in))
 					str[(y*z->width + x)] = s.charac;
 				x++;
 			}
@@ -114,19 +113,18 @@ int main(int argc, char **argv)
 	}
 	if (!(file = fopen(argv[1], "r")))
 	{
-					printf("1");
 		write(1, "Error: Operation file corrupted\n", 32);
 		return (1);
 	}
 	if (!(draw_z = draw_zone(file, &z)))
 	{
-					printf("2");
+		fclose(file);
 		write(1, "Error: Operation file corrupted\n", 32);
 		return (1);
 	}
-	if (draw_circle(file, &z, draw_z))
+	if (draw_rectangle(file, &z, draw_z))
 	{
-					printf("3");
+		fclose(file);
 		write(1, "Error: Operation file corrupted\n", 32);
 		return (1);
 	}
@@ -135,3 +133,4 @@ int main(int argc, char **argv)
 	free(draw_z);
 	return(0);
 }
+
